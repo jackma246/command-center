@@ -5,6 +5,13 @@ interface StudyDay {
   topic: string;
   status: "completed" | "current" | "upcoming";
   notes?: string;
+  details?: {
+    keyConcepts: string[];
+    resources: { type: string; title: string; url?: string; chapter?: string }[];
+    practiceProblems: string[];
+    timeEstimate: string;
+    learningObjectives: string[];
+  };
 }
 
 interface StudyWeek {
@@ -32,7 +39,7 @@ export async function GET() {
       });
 
       const res = await pool.query(`
-        SELECT week, day, topic, status, notes 
+        SELECT week, day, topic, status, notes, details 
         FROM study_progress 
         ORDER BY week, day
       `);
@@ -50,6 +57,7 @@ export async function GET() {
           topic: row.topic,
           status: row.status,
           notes: row.notes,
+          details: row.details,
         });
       }
 
