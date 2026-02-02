@@ -99,7 +99,7 @@ export default function Dashboard() {
       title: "API Costs",
       icon: "💰",
       href: "/costs",
-      value: costs ? `$${costs.monthToDate.toFixed(0)}` : "--",
+      value: costs ? `$${Number(costs.monthToDate ?? 0).toFixed(0)}` : "--",
       subtext: "This month",
       color: "from-orange-600 to-orange-800",
     },
@@ -151,28 +151,28 @@ export default function Dashboard() {
           <div className="bg-gray-800 rounded-lg p-4">
             <p className="text-gray-400 text-sm">Available SOL</p>
             <p className="text-2xl font-bold font-mono">
-              {trading ? trading.solBalance.toFixed(2) : "--"} SOL
+              {trading ? Number(trading.solBalance ?? 0).toFixed(2) : "--"} SOL
             </p>
             <p className="text-gray-500 text-sm">
-              ~${trading ? trading.solBalanceUsd.toFixed(0) : "--"}
+              ~${trading ? Number(trading.solBalanceUsd ?? 0).toFixed(0) : "--"}
             </p>
           </div>
           <div className="bg-gray-800 rounded-lg p-4">
             <p className="text-gray-400 text-sm">In Open Positions</p>
             <p className="text-2xl font-bold font-mono">
-              ~{trading ? trading.positionValue.toFixed(2) : "--"} SOL
+              ~{trading ? Number(trading.positionValue ?? 0).toFixed(2) : "--"} SOL
             </p>
             <p className="text-gray-500 text-sm">
-              {trading ? `${trading.positionCount} tokens` : "--"}
+              {trading ? `${trading.positionCount ?? 0} tokens` : "--"}
             </p>
           </div>
           <div className="bg-gray-800 rounded-lg p-4">
             <p className="text-gray-400 text-sm">Total Portfolio</p>
-            <p className={`text-2xl font-bold font-mono ${trading && trading.pnl.netPnl > 0 ? "text-green-400" : ""}`}>
-              ~{trading ? trading.totalPortfolio.toFixed(2) : "--"} SOL
+            <p className={`text-2xl font-bold font-mono ${trading && Number(trading.pnl?.netPnl ?? 0) > 0 ? "text-green-400" : ""}`}>
+              ~{trading ? Number(trading.totalPortfolio ?? 0).toFixed(2) : "--"} SOL
             </p>
             <p className="text-gray-500 text-sm">
-              ~${trading ? trading.totalPortfolioUsd.toFixed(0) : "--"}
+              ~${trading ? Number(trading.totalPortfolioUsd ?? 0).toFixed(0) : "--"}
             </p>
           </div>
         </div>
@@ -181,9 +181,9 @@ export default function Dashboard() {
         {trading && (
           <div className="mt-4 pt-4 border-t border-gray-800 flex items-center justify-between">
             <span className="text-gray-400">Today&apos;s P&L</span>
-            <span className={`font-mono font-bold ${trading.today.netPnl >= 0 ? "text-green-400" : "text-red-400"}`}>
-              {trading.today.netPnl >= 0 ? "+" : ""}{trading.today.netPnl.toFixed(4)} SOL 
-              ({trading.today.netPnlUsd >= 0 ? "+" : ""}${trading.today.netPnlUsd.toFixed(2)})
+            <span className={`font-mono font-bold ${Number(trading.today?.netPnl ?? 0) >= 0 ? "text-green-400" : "text-red-400"}`}>
+              {Number(trading.today?.netPnl ?? 0) >= 0 ? "+" : ""}{Number(trading.today?.netPnl ?? 0).toFixed(4)} SOL 
+              ({Number(trading.today?.netPnlUsd ?? 0) >= 0 ? "+" : ""}${Number(trading.today?.netPnlUsd ?? 0).toFixed(2)})
             </span>
           </div>
         )}
