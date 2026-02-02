@@ -157,11 +157,8 @@ export async function GET() {
           pairAddress: priceData?.pairAddress || null,
         };
       }).filter(pos => {
-        // Filter out dead/worthless positions:
-        // Keep if: valueUsd > $0.15 OR has liquidity > $1000
-        const hasValue = pos.valueUsd && pos.valueUsd > 0.15;
-        const hasLiquidity = pos.liquidity && pos.liquidity > 1000;
-        return hasValue || hasLiquidity;
+        // Filter out worthless positions - must be worth > $0.15
+        return pos.valueUsd && pos.valueUsd > 0.15;
       });
       
       // Calculate total value from filtered positions only
