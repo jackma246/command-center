@@ -84,34 +84,24 @@ export async function GET() {
       let completed = 0;
       let total = 0;
 
-      // Update status based on calculated current day
+      // Mark current day based on date, but DON'T auto-complete past days
       for (const week of weeks) {
         for (const day of week.days) {
           total++;
           const absoluteDay = (week.week - 1) * 7 + day.day;
           
-          // Override status based on date
-          if (absoluteDay < calculatedDay) {
-            if (day.status !== "completed") day.status = "completed"; // Auto-mark past days
-            completed++;
-          } else if (absoluteDay === calculatedDay) {
+          // Only mark TODAY as current, leave past days as whatever status they have in DB
+          if (absoluteDay === calculatedDay) {
             day.status = "current";
             currentTopic = day.topic;
-          } else {
-            day.status = "upcoming";
           }
           
-          // Count manually completed days too
+          // Count completed days from DB
           if (day.status === "completed") {
             completed++;
           }
         }
       }
-      
-      // Dedupe completed count (in case we double-counted)
-      completed = weeks.reduce((sum, w) => 
-        sum + w.days.filter(d => d.status === "completed").length, 0
-      );
 
       const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
 
