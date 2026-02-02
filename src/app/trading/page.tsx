@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 interface Position {
   mint: string;
-  amount: number;
+  amount: number | string;
 }
 
 interface TradingData {
@@ -175,7 +175,7 @@ export default function TradingPage() {
                     <td className="py-3 font-mono text-sm">
                       {pos.mint.slice(0, 8)}...{pos.mint.slice(-6)}
                     </td>
-                    <td className="py-3 text-right font-mono">{pos.amount.toFixed(6)}</td>
+                    <td className="py-3 text-right font-mono">{parseFloat(String(pos.amount)).toFixed(6)}</td>
                   </tr>
                 ))}
               </tbody>
