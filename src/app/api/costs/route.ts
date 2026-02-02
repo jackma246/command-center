@@ -247,10 +247,14 @@ export async function GET() {
       )
     );
     
-    // Collect successful results
+    // Collect successful results (ensure cost is a number)
     realUsageResults.forEach(result => {
       if (result.status === 'fulfilled' && result.value) {
-        costs.push(result.value);
+        const costData = result.value;
+        costData.cost = Number(costData.cost || 0);
+        costData.requests = Number(costData.requests || 0);
+        costData.tokens = Number(costData.tokens || 0);
+        costs.push(costData);
       }
     });
     
@@ -283,9 +287,9 @@ export async function GET() {
       console.log('Legacy cost tracker script not available or failed');
     }
 
-    const totalCost = costs.reduce((sum, c) => sum + c.cost, 0);
-    const totalRequests = costs.reduce((sum, c) => sum + c.requests, 0);
-    const totalTokens = costs.reduce((sum, c) => sum + c.tokens, 0);
+    const totalCost = costs.reduce((sum, c) => sum + Number(c.cost || 0), 0);
+    const totalRequests = costs.reduce((sum, c) => sum + Number(c.requests || 0), 0);
+    const totalTokens = costs.reduce((sum, c) => sum + Number(c.tokens || 0), 0);
 
     const monthlyBudget = 50;
     const currentDay = new Date().getDate();
