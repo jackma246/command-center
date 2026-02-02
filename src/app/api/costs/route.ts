@@ -204,10 +204,10 @@ async function fetchGoogleUsage(credentials: string): Promise<CostData | null> {
   }
 }
 
-// Get fallback estimates
+// Get fallback/fixed costs
 function getFallbackEstimates(): CostData[] {
   return [
-    { provider: "Anthropic (Est)", cost: 8.50, requests: 45, tokens: 120000 },
+    { provider: "Anthropic (ClaudeMax)", cost: 200, requests: 0, tokens: 0 }, // Fixed $200/mo subscription
     { provider: "Google/Gemini (Est)", cost: 1.20, requests: 180, tokens: 450000 },
     { provider: "OpenAI (Est)", cost: 2.80, requests: 95, tokens: 180000 },
     { provider: "Helius", cost: 0, requests: 2500, tokens: 0 },
@@ -291,7 +291,7 @@ export async function GET() {
     const totalRequests = costs.reduce((sum, c) => sum + Number(c.requests || 0), 0);
     const totalTokens = costs.reduce((sum, c) => sum + Number(c.tokens || 0), 0);
 
-    const monthlyBudget = 50;
+    const monthlyBudget = 250; // $200 ClaudeMax + ~$50 for OpenAI/Google/APIs
     const currentDay = new Date().getDate();
     const daysInMonth = new Date(2026, 2, 0).getDate(); // Feb 2026
     const projectedMonthly = (totalCost / currentDay) * daysInMonth;
