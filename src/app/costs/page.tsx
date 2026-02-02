@@ -70,28 +70,28 @@ export default function CostsPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-gray-900 rounded-xl p-5 border border-gray-800">
           <p className="text-gray-400 text-sm mb-1">Month to Date</p>
-          <p className="text-3xl font-bold">${data.monthToDate.toFixed(2)}</p>
-          <p className="text-gray-500 text-sm">of ${data.monthlyBudget} budget</p>
+          <p className="text-3xl font-bold">${(data.monthToDate ?? 0).toFixed(2)}</p>
+          <p className="text-gray-500 text-sm">of ${data.monthlyBudget ?? 50} budget</p>
         </div>
         
         <div className="bg-gray-900 rounded-xl p-5 border border-gray-800">
           <p className="text-gray-400 text-sm mb-1">Projected Monthly</p>
-          <p className={`text-3xl font-bold ${data.projectedMonthly > data.monthlyBudget ? "text-red-400" : "text-green-400"}`}>
-            ${data.projectedMonthly.toFixed(2)}
+          <p className={`text-3xl font-bold ${(data.projectedMonthly ?? 0) > (data.monthlyBudget ?? 50) ? "text-red-400" : "text-green-400"}`}>
+            ${(data.projectedMonthly ?? 0).toFixed(2)}
           </p>
           <p className="text-gray-500 text-sm">at current pace</p>
         </div>
 
         <div className="bg-gray-900 rounded-xl p-5 border border-gray-800">
           <p className="text-gray-400 text-sm mb-1">Daily Average</p>
-          <p className="text-3xl font-bold">${data.dailyAverage.toFixed(2)}</p>
+          <p className="text-3xl font-bold">${(data.dailyAverage ?? 0).toFixed(2)}</p>
           <p className="text-gray-500 text-sm">per day</p>
         </div>
 
         <div className="bg-gray-900 rounded-xl p-5 border border-gray-800">
           <p className="text-gray-400 text-sm mb-1">Remaining</p>
-          <p className={`text-3xl font-bold ${data.remaining > 0 ? "text-green-400" : "text-red-400"}`}>
-            ${data.remaining.toFixed(2)}
+          <p className={`text-3xl font-bold ${(data.remaining ?? 0) > 0 ? "text-green-400" : "text-red-400"}`}>
+            ${(data.remaining ?? 0).toFixed(2)}
           </p>
           <p className="text-gray-500 text-sm">until budget cap</p>
         </div>
@@ -101,19 +101,19 @@ export default function CostsPage() {
       <div className="bg-gray-900 rounded-xl p-5 border border-gray-800 mb-6">
         <div className="flex justify-between items-center mb-2">
           <span className="font-semibold">Budget Usage</span>
-          <span className="text-sm text-gray-400">{data.budgetUsedPercent.toFixed(1)}%</span>
+          <span className="text-sm text-gray-400">{(data.budgetUsedPercent ?? 0).toFixed(1)}%</span>
         </div>
         <div className="w-full bg-gray-800 rounded-full h-4">
           <div
             className={`h-4 rounded-full transition-all ${
-              data.budgetUsedPercent > 80 ? "bg-red-600" : data.budgetUsedPercent > 60 ? "bg-yellow-600" : "bg-green-600"
+              (data.budgetUsedPercent ?? 0) > 80 ? "bg-red-600" : (data.budgetUsedPercent ?? 0) > 60 ? "bg-yellow-600" : "bg-green-600"
             }`}
-            style={{ width: `${Math.min(data.budgetUsedPercent, 100)}%` }}
+            style={{ width: `${Math.min(data.budgetUsedPercent ?? 0, 100)}%` }}
           />
         </div>
         <div className="flex justify-between text-xs text-gray-500 mt-1">
           <span>$0</span>
-          <span>${data.monthlyBudget}</span>
+          <span>${data.monthlyBudget ?? 50}</span>
         </div>
       </div>
 
@@ -132,14 +132,14 @@ export default function CostsPage() {
               </tr>
             </thead>
             <tbody>
-              {data.costs.map((c, i) => (
+              {(data.costs ?? []).map((c, i) => (
                 <tr key={i} className="border-t border-gray-800">
                   <td className="py-3 font-medium">{c.provider}</td>
-                  <td className="py-3 text-right font-mono">${c.cost.toFixed(2)}</td>
-                  <td className="py-3 text-right text-gray-400">{c.requests.toLocaleString()}</td>
-                  <td className="py-3 text-right text-gray-400">{c.tokens > 0 ? c.tokens.toLocaleString() : "-"}</td>
+                  <td className="py-3 text-right font-mono">${(c.cost ?? 0).toFixed(2)}</td>
+                  <td className="py-3 text-right text-gray-400">{(c.requests ?? 0).toLocaleString()}</td>
+                  <td className="py-3 text-right text-gray-400">{(c.tokens ?? 0) > 0 ? c.tokens.toLocaleString() : "-"}</td>
                   <td className="py-3 text-right text-gray-400">
-                    {data.monthToDate > 0 ? ((c.cost / data.monthToDate) * 100).toFixed(1) : "0"}%
+                    {(data.monthToDate ?? 0) > 0 ? (((c.cost ?? 0) / data.monthToDate) * 100).toFixed(1) : "0"}%
                   </td>
                 </tr>
               ))}
@@ -147,9 +147,9 @@ export default function CostsPage() {
             <tfoot>
               <tr className="border-t border-gray-700 font-semibold">
                 <td className="pt-3">Total</td>
-                <td className="pt-3 text-right font-mono">${data.monthToDate.toFixed(2)}</td>
-                <td className="pt-3 text-right">{data.totalRequests.toLocaleString()}</td>
-                <td className="pt-3 text-right">{data.totalTokens.toLocaleString()}</td>
+                <td className="pt-3 text-right font-mono">${(data.monthToDate ?? 0).toFixed(2)}</td>
+                <td className="pt-3 text-right">{(data.totalRequests ?? 0).toLocaleString()}</td>
+                <td className="pt-3 text-right">{(data.totalTokens ?? 0).toLocaleString()}</td>
                 <td className="pt-3 text-right">100%</td>
               </tr>
             </tfoot>
