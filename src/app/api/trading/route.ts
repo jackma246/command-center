@@ -73,7 +73,7 @@ export async function GET() {
 
       const positionsRes = await pool.query(`
         SELECT COUNT(*) as count FROM positions
-        WHERE wallet_address = $1 AND amount > 0
+        WHERE wallet_address = $1 AND amount > 0.001
       `, [WALLET_ADDRESS]);
 
       const todayRes = await pool.query(`
@@ -89,7 +89,7 @@ export async function GET() {
       const posListRes = await pool.query(`
         SELECT mint, symbol, amount, entry_price_sol, entry_date, pnl_percent, liquidity_usd
         FROM positions
-        WHERE wallet_address = $1 AND amount > 0 
+        WHERE wallet_address = $1 AND amount > 0.001
         ORDER BY entry_date DESC NULLS LAST
         LIMIT 15
       `, [WALLET_ADDRESS]);
