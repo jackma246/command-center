@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 const navItems = [
   { href: "/", label: "Dashboard", icon: "🏠" },
   { href: "/trading", label: "Trading", icon: "📈" },
+  { href: "/calendar", label: "Calendar", icon: "📅" },
   { href: "/study", label: "Study Plan", icon: "📚" },
   { href: "/ideas", label: "Ideas", icon: "💡" },
   { href: "/costs", label: "API Costs", icon: "💰" },
@@ -42,12 +43,7 @@ export default function Sidebar() {
         })}
       </nav>
 
-      <div className="absolute bottom-4 left-4 right-4">
-        <div className="bg-gray-800 rounded-lg p-3 text-xs text-gray-500">
-          <p>💪 $550k target</p>
-          <p>📅 March 2026</p>
-        </div>
-      </div>
+{/* Removed bottom bar */}
     </aside>
   );
 }
