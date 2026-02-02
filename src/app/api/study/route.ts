@@ -70,24 +70,48 @@ export async function GET() {
         });
       }
 
-      // Find current
-      let currentWeek = 1;
-      let currentDay = 1;
+      // Calculate current day based on date (Feb 1, 2026 = Day 1)
+      const studyStartDate = new Date('2026-02-01T00:00:00');
+      const today = new Date();
+      const daysSinceStart = Math.floor((today.getTime() - studyStartDate.getTime()) / (1000 * 60 * 60 * 24));
+      const calculatedDay = Math.max(1, Math.min(28, daysSinceStart + 1)); // 1-indexed, capped at 28
+      const calculatedWeek = Math.ceil(calculatedDay / 7);
+      const dayInWeek = ((calculatedDay - 1) % 7) + 1;
+
+      let currentWeek = calculatedWeek;
+      let currentDay = dayInWeek;
       let currentTopic = "";
       let completed = 0;
       let total = 0;
 
+      // Update status based on calculated current day
       for (const week of weeks) {
         for (const day of week.days) {
           total++;
-          if (day.status === "completed") completed++;
-          if (day.status === "current") {
-            currentWeek = week.week;
-            currentDay = day.day;
+          const absoluteDay = (week.week - 1) * 7 + day.day;
+          
+          // Override status based on date
+          if (absoluteDay < calculatedDay) {
+            if (day.status !== "completed") day.status = "completed"; // Auto-mark past days
+            completed++;
+          } else if (absoluteDay === calculatedDay) {
+            day.status = "current";
             currentTopic = day.topic;
+          } else {
+            day.status = "upcoming";
+          }
+          
+          // Count manually completed days too
+          if (day.status === "completed") {
+            completed++;
           }
         }
       }
+      
+      // Dedupe completed count (in case we double-counted)
+      completed = weeks.reduce((sum, w) => 
+        sum + w.days.filter(d => d.status === "completed").length, 0
+      );
 
       const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
 
