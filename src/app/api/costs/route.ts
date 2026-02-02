@@ -29,7 +29,7 @@ interface OpenAIUsageResult {
 // API key detection from environment or secrets file
 function getAPIKeys() {
   // Try to load from secrets file
-  let secrets = {};
+  let secrets: Record<string, string> = {};
   try {
     const fs = require('fs');
     const path = require('path');
