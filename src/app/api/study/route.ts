@@ -70,8 +70,8 @@ export async function GET() {
         });
       }
 
-      // Calculate current day based on date (Feb 1, 2026 = Day 1)
-      const studyStartDate = new Date('2026-02-01T00:00:00');
+      // Calculate current day based on date (Feb 2, 2026 = Day 1)
+      const studyStartDate = new Date('2026-02-02T00:00:00');
       const today = new Date();
       const daysSinceStart = Math.floor((today.getTime() - studyStartDate.getTime()) / (1000 * 60 * 60 * 24));
       const calculatedDay = Math.max(1, Math.min(28, daysSinceStart + 1)); // 1-indexed, capped at 28

@@ -55,8 +55,8 @@ export default function CalendarPage() {
     days.push(i);
   }
 
-  // Map study plan to calendar (assuming started Feb 1, 2026)
-  const studyStartDate = new Date(2026, 1, 1); // Feb 1, 2026
+  // Map study plan to calendar (started Feb 2, 2026)
+  const studyStartDate = new Date(2026, 1, 2); // Feb 2, 2026
   const getStudyForDate = (day: number) => {
     const date = new Date(year, month, day);
     const daysSinceStart = Math.floor((date.getTime() - studyStartDate.getTime()) / (1000 * 60 * 60 * 24));
