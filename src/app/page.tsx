@@ -84,7 +84,7 @@ export default function Dashboard() {
       icon: "📚",
       href: "/study",
       value: study ? `Week ${study.currentWeek}` : "--",
-      subtext: study ? `Day ${study.currentDay}: ${study.currentTopic.split(" ")[0]}...` : "Loading...",
+      subtext: study ? `Day ${study.currentDay}: ${(study.currentTopic || "").split(" ")[0] || "Study"}...` : "Loading...",
       color: "from-blue-600 to-blue-800",
     },
     {
