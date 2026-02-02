@@ -124,7 +124,6 @@ export async function GET() {
         const priceData = tokenPrices.get(pos.mint);
         const amount = parseFloat(pos.amount);
         const valueUsd = priceData ? amount * priceData.priceUsd : 0;
-        totalPositionValue += valueUsd;
         
         // Calculate entry value and P&L
         const entryPriceSol = pos.entry_price_sol ? parseFloat(pos.entry_price_sol) : null;
@@ -157,6 +156,17 @@ export async function GET() {
           liquidity: priceData?.liquidity || parseFloat(pos.liquidity_usd || "0") || null,
           pairAddress: priceData?.pairAddress || null,
         };
+      }).filter(pos => {
+        // Filter out dead/worthless positions:
+        // Keep if: valueUsd > $0.15 OR has liquidity > $1000
+        const hasValue = pos.valueUsd && pos.valueUsd > 0.15;
+        const hasLiquidity = pos.liquidity && pos.liquidity > 1000;
+        return hasValue || hasLiquidity;
+      });
+      
+      // Calculate total value from filtered positions only
+      enrichedPositions.forEach(pos => {
+        totalPositionValue += pos.valueUsd || 0;
       });
 
       const positionValueSol = totalPositionValue / solPrice;
@@ -166,7 +176,7 @@ export async function GET() {
         solPrice,
         solBalance,
         solBalanceUsd: solBalance * solPrice,
-        positionCount,
+        positionCount: enrichedPositions.length, // Use filtered count
         positionValue: positionValueSol,
         positionValueUsd: totalPositionValue,
         totalPortfolio: solBalance + positionValueSol,
