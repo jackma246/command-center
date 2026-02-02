@@ -303,6 +303,41 @@ export async function GET() {
     const realDataSources = costs.filter(c => c.provider.includes('(Real)')).map(c => c.provider.split(' ')[0]);
     const estimatedSources = costs.filter(c => c.provider.includes('(Est)')).map(c => c.provider.split(' ')[0]);
     
+    // Get session stats from database
+    let sessionStats = null;
+    const DATABASE_URL = process.env.DATABASE_URL;
+    if (DATABASE_URL) {
+      try {
+        const { Pool } = await import("pg");
+        const pool = new Pool({
+          connectionString: DATABASE_URL,
+          ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
+        });
+        const statsRes = await pool.query(`
+          SELECT session_key, model, tokens_in, tokens_out, context_used, context_max, compactions, updated_at
+          FROM session_stats ORDER BY updated_at DESC LIMIT 1
+        `);
+        await pool.end();
+        
+        if (statsRes.rows.length > 0) {
+          const row = statsRes.rows[0];
+          sessionStats = {
+            sessionKey: row.session_key,
+            model: row.model,
+            tokensIn: Number(row.tokens_in || 0),
+            tokensOut: Number(row.tokens_out || 0),
+            contextUsed: Number(row.context_used || 0),
+            contextMax: Number(row.context_max || 200000),
+            contextPercent: Math.round((Number(row.context_used || 0) / Number(row.context_max || 200000)) * 100),
+            compactions: Number(row.compactions || 0),
+            updatedAt: row.updated_at,
+          };
+        }
+      } catch (dbErr) {
+        console.log('Could not fetch session stats:', dbErr);
+      }
+    }
+
     return NextResponse.json({
       monthToDate: totalCost,
       monthlyBudget,
@@ -324,6 +359,7 @@ export async function GET() {
           google: !!apiKeys.google,
         }
       },
+      sessionStats,
       optimizations: [
         { done: true, text: "Switched trading crons from GPT-4.1 to Gemini Flash (~80% savings)" },
         { done: true, text: "Using Helius free tier (50k req/day)" },

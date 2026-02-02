@@ -14,6 +14,18 @@ interface Optimization {
   text: string;
 }
 
+interface SessionStats {
+  sessionKey: string;
+  model: string;
+  tokensIn: number;
+  tokensOut: number;
+  contextUsed: number;
+  contextMax: number;
+  contextPercent: number;
+  compactions: number;
+  updatedAt: string;
+}
+
 interface CostsData {
   monthToDate: number;
   monthlyBudget: number;
@@ -26,6 +38,7 @@ interface CostsData {
   totalRequests: number;
   totalTokens: number;
   costs: CostItem[];
+  sessionStats: SessionStats | null;
   optimizations: Optimization[];
   lastUpdated: string;
 }
@@ -156,6 +169,47 @@ export default function CostsPage() {
           </table>
         </div>
       </div>
+
+      {/* Session Stats */}
+      {data.sessionStats && (
+        <div className="bg-gray-900 rounded-xl p-5 border border-gray-800 mb-6">
+          <h2 className="text-lg font-semibold mb-4">🧠 Current Session</h2>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+            <div className="bg-gray-800 rounded-lg p-3">
+              <p className="text-gray-400 text-xs">Model</p>
+              <p className="font-mono text-sm truncate">{data.sessionStats.model}</p>
+            </div>
+            <div className="bg-gray-800 rounded-lg p-3">
+              <p className="text-gray-400 text-xs">Context</p>
+              <p className="font-mono text-sm">
+                {(data.sessionStats.contextUsed / 1000).toFixed(0)}k / {(data.sessionStats.contextMax / 1000).toFixed(0)}k
+              </p>
+            </div>
+            <div className="bg-gray-800 rounded-lg p-3">
+              <p className="text-gray-400 text-xs">Tokens (In/Out)</p>
+              <p className="font-mono text-sm">
+                {data.sessionStats.tokensIn.toLocaleString()} / {data.sessionStats.tokensOut.toLocaleString()}
+              </p>
+            </div>
+            <div className="bg-gray-800 rounded-lg p-3">
+              <p className="text-gray-400 text-xs">Compactions</p>
+              <p className="font-mono text-sm">{data.sessionStats.compactions}</p>
+            </div>
+          </div>
+          <div className="w-full bg-gray-800 rounded-full h-3">
+            <div
+              className={`h-3 rounded-full transition-all ${
+                data.sessionStats.contextPercent > 80 ? "bg-red-600" : 
+                data.sessionStats.contextPercent > 60 ? "bg-yellow-600" : "bg-blue-600"
+              }`}
+              style={{ width: `${Math.min(data.sessionStats.contextPercent, 100)}%` }}
+            />
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            Context usage: {data.sessionStats.contextPercent}%
+          </p>
+        </div>
+      )}
 
       {/* Cost Optimization Tips */}
       <div className="bg-gradient-to-br from-green-900/30 to-blue-900/30 rounded-xl p-5 border border-green-800/30">
