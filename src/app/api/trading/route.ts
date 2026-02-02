@@ -14,8 +14,16 @@ async function getSolPrice(): Promise<number> {
   }
 }
 
-// Fetch token prices from DexScreener
-async function getTokenPrices(mints: string[]): Promise<Map<string, { priceUsd: number; symbol: string; name: string; liquidity: number }>> {
+// Fetch token prices from DexScreener (with 24h change and volume)
+async function getTokenPrices(mints: string[]): Promise<Map<string, { 
+  priceUsd: number; 
+  symbol: string; 
+  name: string; 
+  liquidity: number;
+  priceChange24h: number;
+  volume24h: number;
+  pairAddress: string;
+}>> {
   const prices = new Map();
   if (mints.length === 0) return prices;
   
@@ -32,6 +40,9 @@ async function getTokenPrices(mints: string[]): Promise<Map<string, { priceUsd: 
             symbol: pair.baseToken.symbol || "???",
             name: pair.baseToken.name || "Unknown",
             liquidity: pair.liquidity?.usd || 0,
+            priceChange24h: pair.priceChange?.h24 || 0,
+            volume24h: pair.volume?.h24 || 0,
+            pairAddress: pair.pairAddress || null,
           });
         }
       }
@@ -76,8 +87,11 @@ export async function GET() {
       `, [WALLET_ADDRESS]);
 
       const posListRes = await pool.query(`
-        SELECT mint, symbol, amount FROM positions
-        WHERE wallet_address = $1 AND amount > 0 LIMIT 15
+        SELECT mint, symbol, amount, entry_price_sol, entry_date, pnl_percent, liquidity_usd
+        FROM positions
+        WHERE wallet_address = $1 AND amount > 0 
+        ORDER BY entry_date DESC NULLS LAST
+        LIMIT 15
       `, [WALLET_ADDRESS]);
 
       await pool.end();
@@ -94,13 +108,37 @@ export async function GET() {
       const mints = posListRes.rows.map((p: { mint: string }) => p.mint);
       const tokenPrices = await getTokenPrices(mints);
 
-      // Enrich positions with price data
+      // Enrich positions with price data and calculate P&L
       let totalPositionValue = 0;
-      const enrichedPositions = posListRes.rows.map((pos: { mint: string; symbol: string; amount: string }) => {
+      interface PositionRow {
+        mint: string;
+        symbol: string;
+        amount: string;
+        entry_price_sol: string | null;
+        entry_date: string | null;
+        pnl_percent: string | null;
+        liquidity_usd: string | null;
+      }
+      
+      const enrichedPositions = posListRes.rows.map((pos: PositionRow) => {
         const priceData = tokenPrices.get(pos.mint);
         const amount = parseFloat(pos.amount);
         const valueUsd = priceData ? amount * priceData.priceUsd : 0;
         totalPositionValue += valueUsd;
+        
+        // Calculate entry value and P&L
+        const entryPriceSol = pos.entry_price_sol ? parseFloat(pos.entry_price_sol) : null;
+        const entryValueUsd = entryPriceSol ? entryPriceSol * solPrice : null;
+        
+        // Calculate P&L if we have both entry and current price
+        let pnlUsd = null;
+        let pnlPercent = pos.pnl_percent ? parseFloat(pos.pnl_percent) : null;
+        if (entryValueUsd && valueUsd) {
+          pnlUsd = valueUsd - entryValueUsd;
+          if (!pnlPercent && entryValueUsd > 0) {
+            pnlPercent = ((valueUsd - entryValueUsd) / entryValueUsd) * 100;
+          }
+        }
         
         return {
           mint: pos.mint,
@@ -109,7 +147,15 @@ export async function GET() {
           amount: pos.amount,
           priceUsd: priceData?.priceUsd || null,
           valueUsd: valueUsd || null,
-          liquidity: priceData?.liquidity || null,
+          entryPriceSol: entryPriceSol,
+          entryValueUsd: entryValueUsd,
+          entryDate: pos.entry_date,
+          pnlUsd: pnlUsd,
+          pnlPercent: pnlPercent,
+          priceChange24h: priceData?.priceChange24h || null,
+          volume24h: priceData?.volume24h || null,
+          liquidity: priceData?.liquidity || parseFloat(pos.liquidity_usd || "0") || null,
+          pairAddress: priceData?.pairAddress || null,
         };
       });
 

@@ -9,8 +9,15 @@ interface Position {
   amount: number | string;
   priceUsd?: number;
   valueUsd?: number;
+  entryPriceSol?: number;
+  entryValueUsd?: number;
+  entryDate?: string;
+  pnlUsd?: number;
   pnlPercent?: number;
+  priceChange24h?: number;
+  volume24h?: number;
   liquidity?: number;
+  pairAddress?: string;
 }
 
 interface TradingData {
@@ -37,12 +44,6 @@ interface TradingData {
   lastUpdated: string;
 }
 
-// Known token symbols (we can expand this)
-const KNOWN_TOKENS: Record<string, { symbol: string; name: string }> = {
-  "HcWZLqRLUuX1oVXDeAgyBpbQrmtcJP7AyNcHCvUZpump": { symbol: "PUMP", name: "Pump Token" },
-  "BLJjLD57w4uuNYkRm4wNuRJ1fSd2j9SSHLN8s35Mvpuq": { symbol: "AUTARDIO", name: "Autardio" },
-};
-
 export default function TradingPage() {
   const [data, setData] = useState<TradingData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -54,16 +55,6 @@ export default function TradingPage() {
         const res = await fetch("/api/trading");
         if (!res.ok) throw new Error("Failed to fetch");
         const tradingData = await res.json();
-        
-        // Enrich positions with known token info
-        if (tradingData.positions) {
-          tradingData.positions = tradingData.positions.map((pos: Position) => ({
-            ...pos,
-            symbol: KNOWN_TOKENS[pos.mint]?.symbol || pos.symbol,
-            name: KNOWN_TOKENS[pos.mint]?.name || pos.name,
-          }));
-        }
-        
         setData(tradingData);
         setError(null);
       } catch (err) {
@@ -148,77 +139,166 @@ export default function TradingPage() {
         
         {data && data.positions && data.positions.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-gray-400 text-sm border-b border-gray-800">
+                <tr className="text-left text-gray-400 text-xs border-b border-gray-800">
                   <th className="pb-3 pl-2">Token</th>
-                  <th className="pb-3">Contract</th>
                   <th className="pb-3 text-right">Amount</th>
-                  <th className="pb-3 text-right">Price</th>
-                  <th className="pb-3 text-right">Value (USD)</th>
-                  <th className="pb-3 text-right pr-2">Actions</th>
+                  <th className="pb-3 text-right">Entry</th>
+                  <th className="pb-3 text-right">Current</th>
+                  <th className="pb-3 text-right">Value</th>
+                  <th className="pb-3 text-right">P&L</th>
+                  <th className="pb-3 text-right">24h</th>
+                  <th className="pb-3 text-right">Liquidity</th>
+                  <th className="pb-3 text-right pr-2">Links</th>
                 </tr>
               </thead>
               <tbody>
                 {data.positions.map((pos, i) => {
                   const amount = parseFloat(String(pos.amount));
-                  const isKnown = pos.symbol && pos.symbol !== pos.mint;
+                  const pnlPositive = (pos.pnlPercent || 0) >= 0;
+                  const change24hPositive = (pos.priceChange24h || 0) >= 0;
+                  
+                  // Format time held
+                  const entryDate = pos.entryDate ? new Date(pos.entryDate) : null;
+                  const hoursHeld = entryDate ? Math.floor((Date.now() - entryDate.getTime()) / (1000 * 60 * 60)) : null;
+                  const timeHeldStr = hoursHeld !== null 
+                    ? hoursHeld < 24 ? `${hoursHeld}h` : `${Math.floor(hoursHeld / 24)}d`
+                    : null;
                   
                   return (
                     <tr key={i} className="border-b border-gray-800/50 hover:bg-gray-800/30">
+                      {/* Token */}
                       <td className="py-3 pl-2">
-                        <div>
-                          <span className="font-semibold text-white">
-                            {pos.symbol || "Unknown"}
-                          </span>
-                          {pos.name && (
-                            <p className="text-xs text-gray-500">{pos.name}</p>
-                          )}
+                        <div className="flex items-center gap-2">
+                          <div>
+                            <span className="font-semibold text-white">
+                              {pos.symbol || "???"}
+                            </span>
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                              <a
+                                href={`https://solscan.io/token/${pos.mint}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-mono hover:text-blue-400"
+                              >
+                                {formatMint(pos.mint)}
+                              </a>
+                              {timeHeldStr && (
+                                <span className="text-gray-600">• {timeHeldStr}</span>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       </td>
-                      <td className="py-3">
-                        <a
-                          href={`https://solscan.io/token/${pos.mint}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-mono text-xs text-blue-400 hover:underline"
-                        >
-                          {formatMint(pos.mint)}
-                        </a>
-                      </td>
-                      <td className="py-3 text-right font-mono text-sm">
+                      
+                      {/* Amount */}
+                      <td className="py-3 text-right font-mono">
                         {amount > 1000000 
-                          ? `${(amount / 1000000).toFixed(2)}M`
+                          ? `${(amount / 1000000).toFixed(1)}M`
                           : amount > 1000 
-                            ? `${(amount / 1000).toFixed(2)}K`
-                            : amount.toFixed(2)
+                            ? `${(amount / 1000).toFixed(1)}K`
+                            : amount.toFixed(0)
                         }
                       </td>
-                      <td className="py-3 text-right font-mono text-sm text-gray-400">
-                        {pos.priceUsd ? `$${pos.priceUsd.toFixed(8)}` : "--"}
-                      </td>
-                      <td className="py-3 text-right font-mono text-sm">
-                        {pos.valueUsd ? (
-                          <span className="text-green-400">${pos.valueUsd.toFixed(2)}</span>
+                      
+                      {/* Entry Price */}
+                      <td className="py-3 text-right font-mono text-gray-400">
+                        {pos.entryValueUsd ? (
+                          <span>${pos.entryValueUsd.toFixed(2)}</span>
                         ) : (
-                          <span className="text-gray-500">--</span>
+                          <span className="text-gray-600">--</span>
                         )}
                       </td>
+                      
+                      {/* Current Price */}
+                      <td className="py-3 text-right font-mono text-gray-400">
+                        {pos.priceUsd ? `$${pos.priceUsd < 0.0001 ? pos.priceUsd.toExponential(2) : pos.priceUsd.toFixed(6)}` : "--"}
+                      </td>
+                      
+                      {/* Value (USD) */}
+                      <td className="py-3 text-right font-mono font-semibold">
+                        {pos.valueUsd ? (
+                          <span className="text-white">${pos.valueUsd.toFixed(2)}</span>
+                        ) : (
+                          <span className="text-gray-600">--</span>
+                        )}
+                      </td>
+                      
+                      {/* P&L */}
+                      <td className="py-3 text-right font-mono">
+                        {pos.pnlPercent !== null && pos.pnlPercent !== undefined ? (
+                          <div>
+                            <span className={pnlPositive ? "text-green-400" : "text-red-400"}>
+                              {pnlPositive ? "+" : ""}{pos.pnlPercent.toFixed(1)}%
+                            </span>
+                            {pos.pnlUsd !== null && pos.pnlUsd !== undefined && (
+                              <p className={`text-xs ${pnlPositive ? "text-green-400/60" : "text-red-400/60"}`}>
+                                {pnlPositive ? "+" : ""}${pos.pnlUsd.toFixed(2)}
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-gray-600">--</span>
+                        )}
+                      </td>
+                      
+                      {/* 24h Change */}
+                      <td className="py-3 text-right font-mono text-xs">
+                        {pos.priceChange24h !== null && pos.priceChange24h !== undefined ? (
+                          <span className={change24hPositive ? "text-green-400" : "text-red-400"}>
+                            {change24hPositive ? "+" : ""}{pos.priceChange24h.toFixed(1)}%
+                          </span>
+                        ) : (
+                          <span className="text-gray-600">--</span>
+                        )}
+                      </td>
+                      
+                      {/* Liquidity */}
+                      <td className="py-3 text-right font-mono text-xs text-gray-400">
+                        {pos.liquidity ? (
+                          pos.liquidity >= 1000000 
+                            ? `$${(pos.liquidity / 1000000).toFixed(1)}M`
+                            : pos.liquidity >= 1000
+                              ? `$${(pos.liquidity / 1000).toFixed(0)}K`
+                              : `$${pos.liquidity.toFixed(0)}`
+                        ) : "--"}
+                      </td>
+                      
+                      {/* Links */}
                       <td className="py-3 text-right pr-2">
-                        <a
-                          href={`https://dexscreener.com/solana/${pos.mint}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded"
-                        >
-                          Chart
-                        </a>
+                        <div className="flex justify-end gap-1">
+                          <a
+                            href={`https://dexscreener.com/solana/${pos.pairAddress || pos.mint}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded"
+                            title="DexScreener"
+                          >
+                            📊
+                          </a>
+                          <a
+                            href={`https://birdeye.so/token/${pos.mint}?chain=solana`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded"
+                            title="Birdeye"
+                          >
+                            🦅
+                          </a>
+                        </div>
                       </td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
+            
+            {/* Volume footer */}
+            <div className="mt-3 pt-3 border-t border-gray-800 flex justify-between text-xs text-gray-500">
+              <span>24h Volume: ${data.positions.reduce((sum, p) => sum + (p.volume24h || 0), 0).toLocaleString()}</span>
+              <span>Total Liquidity: ${data.positions.reduce((sum, p) => sum + (p.liquidity || 0), 0).toLocaleString()}</span>
+            </div>
           </div>
         ) : (
           <p className="text-gray-500">No open positions</p>
