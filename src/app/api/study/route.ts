@@ -1,13 +1,10 @@
 import { NextResponse } from "next/server";
-import { promises as fs } from "fs";
-import path from "path";
-
-const STUDY_PLAN_PATH = "/Users/jacma/.openclaw/workspace/study/STUDY-PLAN.md";
 
 interface StudyDay {
   day: number;
   topic: string;
   status: "completed" | "current" | "upcoming";
+  notes?: string;
 }
 
 interface StudyWeek {
@@ -16,115 +13,147 @@ interface StudyWeek {
   days: StudyDay[];
 }
 
-export async function GET() {
-  try {
-    let content: string;
-    
-    try {
-      content = await fs.readFile(STUDY_PLAN_PATH, "utf-8");
-    } catch {
-      // Return default if file doesn't exist
-      return NextResponse.json(getDefaultPlan());
-    }
+const WEEK_TITLES: Record<number, string> = {
+  1: "System Design Foundations",
+  2: "Distributed Systems Deep Dive",
+  3: "Data-Intensive Applications",
+  4: "Staff-Level Prep & Mock Interviews",
+};
 
-    const plan = parseStudyPlan(content);
-    return NextResponse.json(plan);
-  } catch (error) {
-    console.error("Study API error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch study plan" },
-      { status: 500 }
-    );
+export async function GET() {
+  const DATABASE_URL = process.env.DATABASE_URL;
+
+  if (DATABASE_URL) {
+    try {
+      const { Pool } = await import("pg");
+      const pool = new Pool({
+        connectionString: DATABASE_URL,
+        ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
+      });
+
+      const res = await pool.query(`
+        SELECT week, day, topic, status, notes 
+        FROM study_progress 
+        ORDER BY week, day
+      `);
+
+      await pool.end();
+
+      // Group by week
+      const weeksMap = new Map<number, StudyDay[]>();
+      for (const row of res.rows) {
+        if (!weeksMap.has(row.week)) {
+          weeksMap.set(row.week, []);
+        }
+        weeksMap.get(row.week)!.push({
+          day: row.day,
+          topic: row.topic,
+          status: row.status,
+          notes: row.notes,
+        });
+      }
+
+      const weeks: StudyWeek[] = [];
+      for (const [weekNum, days] of weeksMap) {
+        weeks.push({
+          week: weekNum,
+          title: WEEK_TITLES[weekNum] || `Week ${weekNum}`,
+          days,
+        });
+      }
+
+      // Find current
+      let currentWeek = 1;
+      let currentDay = 1;
+      let currentTopic = "";
+      let completed = 0;
+      let total = 0;
+
+      for (const week of weeks) {
+        for (const day of week.days) {
+          total++;
+          if (day.status === "completed") completed++;
+          if (day.status === "current") {
+            currentWeek = week.week;
+            currentDay = day.day;
+            currentTopic = day.topic;
+          }
+        }
+      }
+
+      const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+      return NextResponse.json({
+        title: "Staff Engineer Interview Prep",
+        targetDate: "March 2026",
+        currentWeek,
+        currentDay,
+        currentTopic: currentTopic || "No topic set",
+        progress,
+        completed,
+        total,
+        weeks,
+        lastUpdated: new Date().toISOString(),
+        source: "database",
+      });
+    } catch (error) {
+      console.error("DB error:", error);
+      // Fall through to default
+    }
   }
+
+  // Fallback to hardcoded plan
+  return NextResponse.json(getDefaultPlan());
 }
 
-function parseStudyPlan(content: string) {
-  const lines = content.split("\n");
-  const weeks: StudyWeek[] = [];
-  let currentWeek: StudyWeek | null = null;
-  let title = "Staff Engineer Interview Prep";
-
-  for (const line of lines) {
-    if (line.startsWith("# ")) {
-      title = line.replace("# ", "").trim();
-    }
-
-    const weekMatch = line.match(/^##\s+Week\s+(\d+):\s*(.+)/i);
-    if (weekMatch) {
-      if (currentWeek) weeks.push(currentWeek);
-      currentWeek = {
-        week: parseInt(weekMatch[1]),
-        title: weekMatch[2].trim(),
-        days: [],
-      };
-      continue;
-    }
-
-    const dayMatch = line.match(/^-\s*\[?\s*([xX ])?\s*\]?\s*Day\s+(\d+):\s*(.+)/i);
-    if (dayMatch && currentWeek) {
-      const isCompleted = dayMatch[1]?.toLowerCase() === "x";
-      currentWeek.days.push({
-        day: parseInt(dayMatch[2]),
-        topic: dayMatch[3].trim(),
-        status: isCompleted ? "completed" : "upcoming",
-      });
-    }
+// Mark a day as completed
+export async function POST(request: Request) {
+  const DATABASE_URL = process.env.DATABASE_URL;
+  if (!DATABASE_URL) {
+    return NextResponse.json({ error: "Database not configured" }, { status: 500 });
   }
 
-  if (currentWeek) weeks.push(currentWeek);
+  try {
+    const { week, day, action, notes } = await request.json();
+    const { Pool } = await import("pg");
+    const pool = new Pool({
+      connectionString: DATABASE_URL,
+      ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
+    });
 
-  // Mark first non-completed as current
-  let currentWeekNum = 1;
-  let currentDayNum = 1;
-  let foundCurrent = false;
+    if (action === "complete") {
+      // Mark current day as completed
+      await pool.query(`
+        UPDATE study_progress SET status = 'completed', completed_at = NOW()
+        WHERE week = $1 AND day = $2
+      `, [week, day]);
 
-  for (const week of weeks) {
-    for (const day of week.days) {
-      if (day.status !== "completed" && !foundCurrent) {
-        day.status = "current";
-        currentWeekNum = week.week;
-        currentDayNum = day.day;
-        foundCurrent = true;
-        break;
+      // Find and mark next day as current
+      const nextDay = await pool.query(`
+        SELECT week, day FROM study_progress 
+        WHERE status = 'upcoming' 
+        ORDER BY week, day LIMIT 1
+      `);
+
+      if (nextDay.rows.length > 0) {
+        await pool.query(`
+          UPDATE study_progress SET status = 'current'
+          WHERE week = $1 AND day = $2
+        `, [nextDay.rows[0].week, nextDay.rows[0].day]);
       }
+    } else if (action === "save_notes") {
+      await pool.query(`
+        UPDATE study_progress SET notes = $3, updated_at = NOW()
+        WHERE week = $1 AND day = $2
+      `, [week, day, notes]);
     }
-    if (foundCurrent) break;
-  }
 
-  // Calculate progress
-  let completed = 0;
-  let total = 0;
-  for (const week of weeks) {
-    for (const day of week.days) {
-      total++;
-      if (day.status === "completed") completed++;
-    }
+    await pool.end();
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error updating study progress:", error);
+    return NextResponse.json({ error: "Failed to update" }, { status: 500 });
   }
-  const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
-
-  // Get current topic
-  let currentTopic = "No topic set";
-  for (const week of weeks) {
-    for (const day of week.days) {
-      if (day.status === "current") {
-        currentTopic = day.topic;
-        break;
-      }
-    }
-  }
-
-  return {
-    title,
-    targetDate: "March 2026",
-    currentWeek: currentWeekNum,
-    currentDay: currentDayNum,
-    currentTopic,
-    progress,
-    completed,
-    total,
-    weeks,
-    lastUpdated: new Date().toISOString(),
-  };
 }
 
 function getDefaultPlan() {
@@ -192,5 +221,6 @@ function getDefaultPlan() {
       },
     ],
     lastUpdated: new Date().toISOString(),
+    source: "fallback",
   };
 }
